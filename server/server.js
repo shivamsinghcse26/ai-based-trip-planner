@@ -1,85 +1,56 @@
 const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "1.0.0.1"]);
 
-const express = require("express");
-const cookieParser = require("cookie-parser");
-require("dotenv").config();
-const cors = require("cors");
-const compression = require("compression");
-const { connectDB } = require("./config/db");
-const security = require("./middleware/security");
+const express = require('express');
+const dotenv = require('dotenv');
+dotenv.config();
+const cors = require('cors');
 
-// Import routes
-const authRoutes = require("./routes/authNew");
-const userRoutes = require("./routes/users");
-const tripRoutes = require("./routes/trips");
-const mapRoutes = require("./routes/maps");
-const aiRoutes = require("./routes/ai");
+const connectDB = require('./config/db.js');
+const tripRoutes = require('./routes/tripRoutes.js');
+const authRoutes = require('./routes/authRoutes.js');
+const groupRoutes = require('./routes/groupRoutes.js');
+const expenseRoutes = require('./routes/expenseRoutes.js');
+const dashboardRoutes = require('./routes/dashboardRoutes.js');
+const mapRoutes = require('./routes/mapRoutes.js');
+
+
+
+
 
 const app = express();
 
-// Enhanced CORS configuration
-const corsOptions = {
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  optionsSuccessStatus: 200,
-};
+app.use(cors());
+app.use(express.json());
 
-if (process.env.NODE_ENV === "production" && process.env.ALLOWED_ORIGINS) {
-  corsOptions.origin = process.env.ALLOWED_ORIGINS.split(",").map((origin) =>
-    origin.trim(),
-  );
-  console.log("Allowed Origins:", corsOptions.origin);
-}
+// Health Route
+app.get("/", (req, res) => {
+  res.send("AI Travel Planner Backend Running");
+});
 
-app.use(cors(corsOptions));
+// Routes
+app.use("/api/trip", tripRoutes);
 
-
-// Body parsing middleware with enhanced security
-app.use(
-  express.json({
-    limit: "10mb",
-    verify: (req, res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(cookieParser()); 
-
-
-// Security middleware
-security(app);
-
-// Compression middleware
-app.use(compression());
-
-
-
-// Protected API routes 
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/trips", tripRoutes);
-app.use("/api/maps", mapRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/groups", groupRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/map", mapRoutes);
 
-// Start server
 const PORT = process.env.PORT || 5000;
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(` Server running on http://localhost:${PORT}`);
-      console.log(` Environment: ${process.env.NODE_ENV}`);
-      console.log(` API: http://localhost:${PORT}/api`);
-      console.log(` Health: http://localhost:${PORT}/api/health\n`);
-    });
-  })
-  .catch((error) => {
-    console.error("Database connection failed:", error);
-    process.exit(1);
-  });
+// Start Server
+const startServer = async () => {
+  try {
+    await connectDB();
 
-module.exports = app;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start:", err.message);
+    process.exit(1);
+  }
+};
+
+startServer();
